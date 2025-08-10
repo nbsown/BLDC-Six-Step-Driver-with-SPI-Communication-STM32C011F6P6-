@@ -42,6 +42,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 SPI_HandleTypeDef hspi1;
+DMA_HandleTypeDef hdma_spi1_rx;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim14;
@@ -49,12 +50,13 @@ TIM_HandleTypeDef htim16;
 TIM_HandleTypeDef htim17;
 
 /* USER CODE BEGIN PV */
-
+uint8_t spi_rx_buffer[2];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_TIM14_Init(void);
@@ -66,7 +68,21 @@ static void MX_TIM17_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef * hspi){
+	if(hspi->Instance == SPI1){
+		uint16_t duty_cycle_value = (uint16_t)((spi_rx_buffer[0] << 8)|(spi_rx_buffer[1]));
+		if(duty_cycle_value > 10){
+			uint16_t arr_value = __HAL_TIM_GET_AUTORELOAD(TIM_PWM_SOURCE);
+			if(duty_cycle_value > arr_value){
+				duty_cycle_value = arr_value;
+			}
+			__HAL_TIM_SET_COMPARE(TIM_PWM_SOURCE, TIM_PWM_PHASE_A, duty_cycle_value);
+			__HAL_TIM_SET_COMPARE(TIM_PWM_SOURCE, TIM_PWM_PHASE_B, duty_cycle_value);
+			__HAL_TIM_SET_COMPARE(TIM_PWM_SOURCE, TIM_PWM_PHASE_C, duty_cycle_value);
+		}
+		HAL_SPI_Receive_DMA(&hspi1, spi_rx_buffer, 2);
+	}
+}
 /* USER CODE END 0 */
 
 /**
@@ -93,11 +109,12 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+	
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_TIM1_Init();
   MX_SPI1_Init();
   MX_TIM14_Init();
@@ -379,6 +396,22 @@ static void MX_TIM17_Init(void)
   /* USER CODE BEGIN TIM17_Init 2 */
 
   /* USER CODE END TIM17_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 2, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
 
 }
 
