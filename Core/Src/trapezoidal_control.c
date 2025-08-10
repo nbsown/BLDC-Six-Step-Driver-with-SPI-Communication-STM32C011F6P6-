@@ -105,7 +105,9 @@ void bldc_startup(void){
 		bldc_move();
 		bldc_step = (bldc_step + 1) % 6;
 		delay_us(startup_delay);
-		if(startup_delay > 3000) startup_delay -= 300;
+		if(startup_delay > 3000){
+			startup_delay -= 300;
+		}
 	}
 }
 
